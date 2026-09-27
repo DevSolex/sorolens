@@ -146,6 +146,57 @@ Admin: `GAZ3HN2QNDKWLOI2OQEG65KBJEAUP4PROR3FJNXNDY34UH547MN4CJUI`
 > ⏳ **Coming soon.** Mainnet is on the roadmap. The row above is a placeholder: the mainnet contract ID and explorer link will be published here once the deployment is live.
 
 ---
+## Deploying the API as a standalone Docker service
+
+The Go API ships with a multi-stage `apps/api/Dockerfile` that produces a
+minimal, non-root image (~20 MB) ready to run anywhere Docker is available.
+
+### Build the image
+
+```bash
+# From the repo root:
+docker build \
+  --build-arg VERSION=$(git describe --tags --always) \
+  --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
+  --build-arg BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  -t sorolens/api:latest \
+  -f apps/api/Dockerfile \
+  .
+```
+
+### Run with docker-compose (production profile)
+
+`docker-compose.prod.yml` wires the API, Postgres, Redis, and a one-shot
+migration service together:
+
+```bash
+cp .env.example .env          # fill in DATABASE_URL, REDIS_URL, etc.
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Required environment variables:
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Pooled Postgres connection string |
+| `REDIS_URL` | Redis connection string |
+| `STELLAR_NETWORK` | `testnet`, `mainnet`, or `futurenet` |
+| `SOROBAN_RPC_URL` | Soroban JSON-RPC endpoint |
+| `WATCHDOG_CONTRACT_ID` | Deployed watchdog contract address |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins (e.g. `https://sorolens-web-iota.vercel.app`); omit or set to `*` to allow all |
+
+The API is healthy once `GET /health` returns `{"status":"ok"}`. `GET /readyz`
+additionally checks Postgres and Redis reachability.
+
+### One-click deploy to Railway
+
+A `railway.toml` at the repo root points Railway at the Dockerfile and health
+check. Click **New Project → Deploy from GitHub** in the Railway dashboard,
+select this repo, and Railway will pick up `railway.toml` automatically.
+Set the required environment variables in the Variables panel before the first
+deploy.
+
+---
 ## Tech stack
 | Layer | Technology |
 |---|---|
